@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>QUESTLOG — Gamified Habit Protocol</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{fontFamily:{space:['Space Grotesk','sans-serif'],syne:['Syne','sans-serif'],mono:['JetBrains Mono','monospace']}}}}
+</script>
+<style>
+:root{--bg:#08080E;--panel:#11111D;--panel2:#17172A;--line:rgba(255,255,255,.08);--purple:#A855F7;--cyan:#06B6D4;--pink:#EC4899;--lime:#BEF264}
+*{scrollbar-width:thin;scrollbar-color:rgba(168,85,247,.3) transparent}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:rgba(168,85,247,.3);border-radius:10px}
+body{background:var(--bg);font-family:'Space Grotesk',sans-serif;overflow-x:hidden}
+.bg-grid{background-image:linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);background-size:32px 32px}
+.glass{background:rgba(17,17,29,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line)}
+.glass-strong{background:rgba(23,23,42,.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12)}
+.neon{box-shadow:0 0 0 1px rgba(168,85,247,.2),0 0 30px rgba(168,85,247,.15),inset 0 1px 0 rgba(255,255,255,.08)}
+.neon-cyan{box-shadow:0 0 0 1px rgba(6,182,214,.2),0 0 24px rgba(6,182,214,.18)}
+.xp-grad{background:linear-gradient(90deg,#A855F7 0%,#EC4899 35%,#06B6D4 100%)}
+.hp-grad{background:linear-gradient(90deg,#EF4444 0%,#F97316 100%)}
+.coin-grad{background:linear-gradient(135deg,#FDE047 0%,#FACC15 100%)}
+.task-card{transition:all .22s cubic-bezier(.4,0,.2,1)}
+.task-card:hover{transform:translateY(-2px);border-color:rgba(168,85,247,.35)!important;box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(168,85,247,.15)}
+.task-card.done{border-color:rgba(190,242,100,.35)!important;background:linear-gradient(135deg,rgba(190,242,100,.08),rgba(17,17,29,.7))!important}
+.progress-track{background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;position:relative}
+.progress-fill{height:100%;border-radius:999px;transition:width .6s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.progress-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);transform:translateX(-100%);animation:shimmer 2s infinite}
+@keyframes shimmer{100%{transform:translateX(100%)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+@keyframes levelpop{0%{transform:scale(.8) rotate(-3deg);opacity:0}50%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes scan{0%{transform:translateY(-100%)}100%{transform:translateY(300%)}}
+.bot-eye{animation:blink 4s infinite}
+@keyframes blink{0%,96%,100%{transform:scaleY(1)}98%{transform:scaleY(.1)}}
+.view{animation:viewIn .35s ease}
+@keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.pixel-border{position:relative}
+.pixel-border::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(135deg,rgba(168,85,247,.5),rgba(6,182,214,.3),transparent);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.mono{font-family:'JetBrains Mono',monospace}
+.ticker{white-space:nowrap;animation:ticker 30s linear infinite}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+</style>
+</head>
+<body class="bg-[#08080E] text-white selection:bg-[#A855F7]/30">
+<div class="fixed inset-0 bg-grid pointer-events-none"></div>
+<div class="fixed -top-[30%] -left-[20%] w-[70%] h-[70%] bg-[#A855F7]/[0.07] blur-[120px] rounded-full pointer-events-none"></div>
+<div class="fixed -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-[#06B6D4]/[0.06] blur-[120px] rounded-full pointer-events-none"></div>
+
+<div id="app" class="relative flex min-h-screen">
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="hidden lg:flex w-[300px] shrink-0 flex-col sticky top-0 h-screen p-4 gap-4 z-20">
+    <div class="glass-strong rounded-[20px] p-5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-[12px] xp-grad flex items-center justify-center font-syne font-black text-[18px] tracking-tighter">Q</div>
+        <div>
+          <div class="font-syne font-black text-[16px] tracking-[-0.02em] leading-none">QUESTLOG</div>
+          <div class="mono text-[10px] tracking-[0.2em] opacity-50 mt-[3px]">PROTOCOL v2.1</div>
+        </div>
+        <div class="ml-auto w-2 h-2 rounded-full bg-[#BEF264] shadow-[0_0_10px_#BEF264] animate-pulse"></div>
+      </div>
+      <div class="mt-5 p-3 rounded-[14px] bg-white/[0.03] border border-white/[0.06] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div id="sideAvatar" class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-[14px] font-bold overflow-hidden"></div>
+          <div>
+            <div id="sideName" class="text-[13px] font-semibold leading-none">Player One</div>
+            <div class="mono text-[10px] opacity-50">ID: #0042-Q</div>
+          </div>
+        </div>
+        <button onclick="switchView('profile')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 grid place-items-center transition">↗</button>
+      </div>
+    </div>
+
+    <nav class="glass-strong rounded-[20px] p-2 flex-1 flex flex-col">
+      <div class="space-y-1" id="desktopNav"></div>
+      <div class="mt-auto pt-3 border-t border-white/5 space-y-3">
+        <div id="robotMini" class="rounded-[16px] bg-[#0F0F1A] border border-white/5 p-3 relative overflow-hidden">
+          <div class="absolute inset-0 opacity-20"><div class="w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent absolute" style="animation:scan 3s linear infinite"></div></div>
+          <div class="flex gap-3 relative">
+            <div id="miniBotFace" class="w-[44px] h-[44px] rounded-[12px] bg-[#1A1A2E] border border-white/10 grid place-items-center text-[20px]">🤖</div>
+            <div class="flex-1">
+              <div class="mono text-[9px] tracking-[0.15em] opacity-50">SLACKER_BOT.exe</div>
+              <div id="miniBotText" class="text-[11px] leading-[1.3] mt-1 font-medium">Monitoring your quests...</div>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-[14px] bg-white/[0.02] p-3 border border-white/[0.04]">
+          <div class="flex justify-between mono text-[10px] tracking-widest opacity-60 mb-2"><span>COINS</span><span id="sideCoins" class="text-[#FDE047]">0</span></div>
+          <div class="flex gap-2">
+            <div class="flex-1 h-[36px] rounded-[10px] bg-[#FDE047]/10 border border-[#FDE047]/20 grid place-items-center"><span class="text-[11px] font-bold text-[#FDE047]"><span id="sideDaily">0</span> D</span></div>
+            <div class="flex-1 h-[36px] rounded-[10px] bg-[#A855F7]/10 border border-[#A855F7]/20 grid place-items-center"><span class="text-[11px] font-bold text-[#C4B5FD]"><span id="sideWeekly">0</span> W</span></div>
+            <div class="flex-1 h-[36px] rounded-[10px] bg-[#06B6D4]/10 border border-[#06B6D4]/20 grid place-items-center"><span class="text-[11px] font-bold text-[#67E8F9]"><span id="sideMonthly">0</span> M</span></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 min-w-0 flex flex-col pb-[88px] lg:pb-0">
+    <!-- TOP HUD -->
+    <header class="sticky top-0 z-30 backdrop-blur-[16px] bg-[#08080E]/80 border-b border-white/[0.06]">
+      <div class="px-4 lg:px-8 h-[68px] lg:h-[76px] flex items-center gap-3 lg:gap-6">
+        <!-- Mobile logo -->
+        <div class="lg:hidden w-9 h-9 rounded-[10px] xp-grad grid place-items-center font-syne font-black">Q</div>
+
+        <div class="flex items-center gap-4 flex-1 min-w-0">
+          <div class="hidden lg:flex items-center gap-3">
+            <div class="w-10 h-10 rounded-[12px] bg-white/[0.06] border border-white/10 grid place-items-center font-syne font-bold text-[13px]" id="levelBadge">1</div>
+            <div class="w-[200px]">
+              <div class="flex justify-between mono text-[10px] tracking-[0.12em] mb-[5px]"><span class="opacity-60">XP</span><span id="xpText" class="opacity-90">0 / 100</span></div>
+              <div class="progress-track h-[8px]"><div id="xpBar" class="progress-fill xp-grad h-full" style="width:10%"></div></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 lg:gap-3">
+            <div class="h-[36px] lg:h-[40px] px-3 rounded-full bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-[#EF4444] animate-pulse"></div>
+              <div class="w-[54px] lg:w-[72px] progress-track h-[6px]"><div id="hpBar" class="progress-fill hp-grad h-full" style="width:100%"></div></div>
+              <span id="hpText" class="mono text-[11px] font-bold">100</span>
+            </div>
+            <div class="h-[36px] lg:h-[40px] px-3 rounded-full bg-[#FDE047]/10 border border-[#FDE047]/20 flex items-center gap-2">
+              <span class="text-[14px]">◍</span><span id="coinText" class="mono text-[12px] font-bold text-[#FDE047]">0</span>
+            </div>
+            <div class="h-[36px] lg:h-[40px] px-3 rounded-full bg-[#BEF264]/10 border border-[#BEF264]/20 flex items-center gap-2">
+              <span class="text-[12px]">🔥</span><span id="streakText" class="mono text-[12px] font-bold text-[#BEF264]">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="langBtn" onclick="toggleLang()" class="h-[36px] px-3 rounded-full bg-white/[0.06] border border-white/10 mono text-[11px] font-bold tracking-widest hover:bg-white/10 transition">EN</button>
+          <button id="soundBtn" onclick="toggleSound()" class="w-[36px] h-[36px] rounded-full bg-white/[0.06] border border-white/10 grid place-items-center hover:bg-white/10 transition">🔊</button>
+          <button onclick="switchView('profile')" id="topAvatar" class="w-[36px] h-[36px] rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 overflow-hidden border border-white/20"></button>
+        </div>
+      </div>
+      <!-- Mobile XP -->
+      <div class="lg:hidden px-4 pb-3 flex items-center gap-3">
+        <div class="w-7 h-7 rounded-[8px] bg-white/10 grid place-items-center font-bold text-[11px]" id="levelBadgeM">1</div>
+        <div class="flex-1 progress-track h-[6px]"><div id="xpBarM" class="progress-fill xp-grad h-full" style="width:10%"></div></div>
+        <span id="xpTextM" class="mono text-[10px] opacity-60">0 / 100</span>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="px-4 lg:px-8 py-5 lg:py-8 flex-1">
+      <!-- DAILY -->
+      <div id="dailyView" class="view">
+        <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+          <div>
+            <div class="flex items-center gap-3">
+              <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em] leading-none" data-i18n="dailyTitle">DAILY PROTOCOL</h1>
+              <span id="todayDateLabel" class="mono text-[11px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 tracking-widest"></span>
+            </div>
+            <div id="quoteBox" class="mt-3 max-w-[560px] text-[13px] leading-[1.5] opacity-70 border-l-2 border-violet-500/50 pl-3 italic"></div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="openTaskModal()" class="h-[42px] px-5 rounded-full bg-white text-black font-bold text-[13px] tracking-wide hover:bg-white/90 transition">+ NEW QUEST</button>
+            <button onclick="finishDay()" class="h-[42px] px-5 rounded-full xp-grad font-bold text-[13px] tracking-wide neon hover:brightness-110 transition">FINISH DAY</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div class="glass rounded-[18px] p-4"><div class="mono text-[10px] tracking-[0.15em] opacity-50">TODAY PTS</div><div class="flex items-baseline gap-2 mt-2"><span id="todayPts" class="font-syne font-black text-[28px] leading-none">0</span><span id="todayDelta" class="text-[11px] mono"></span></div><div class="progress-track h-[4px] mt-3"><div id="todayProg" class="progress-fill xp-grad h-full" style="width:0%"></div></div></div>
+          <div class="glass rounded-[18px] p-4"><div class="mono text-[10px] tracking-[0.15em] opacity-50">COMPLETION</div><div class="flex items-baseline gap-2 mt-2"><span id="todayComp" class="font-syne font-black text-[28px] leading-none">0%</span><span class="text-[11px] opacity-60">quests</span></div><div class="mt-3 flex gap-1" id="todayDots"></div></div>
+          <div class="glass rounded-[18px] p-4"><div class="mono text-[10px] tracking-[0.15em] opacity-50">WEEKLY TOTAL</div><div class="font-syne font-black text-[28px] leading-none mt-2" id="weekPts">0</div><div class="mono text-[11px] opacity-50 mt-1" id="weekComp">0% avg</div></div>
+          <div class="glass rounded-[18px] p-4"><div class="mono text-[10px] tracking-[0.15em] opacity-50">MONTHLY TOTAL</div><div class="font-syne font-black text-[28px] leading-none mt-2" id="monthPts">0</div><div class="mono text-[11px] opacity-50 mt-1" id="monthComp">0% avg</div></div>
+        </div>
+
+        <div class="grid lg:grid-cols-[1fr_340px] gap-4">
+          <div id="taskList" class="space-y-3"></div>
+          <div class="space-y-4">
+            <div class="glass-strong rounded-[20px] p-4 overflow-hidden relative">
+              <div class="absolute top-0 right-0 w-[120px] h-[120px] bg-gradient-to-br from-violet-500/20 to-cyan-400/20 blur-[20px] rounded-full"></div>
+              <div class="relative">
+                <div class="flex items-center justify-between mb-3"><span class="mono text-[10px] tracking-[0.2em] opacity-60">ENEMY STATUS</span><span id="botStatusDot" class="w-2 h-2 rounded-full bg-[#BEF264] shadow-[0_0_8px_#BEF264]"></span></div>
+                <div class="flex gap-4">
+                  <div id="botFace" class="w-[68px] h-[68px] rounded-[18px] bg-[#151525] border border-white/10 grid place-items-center text-[32px] relative overflow-hidden" style="animation:float 3s ease-in-out infinite">
+                    <span id="botEmoji">🤖</span>
+                    <div class="absolute bottom-[10px] flex gap-[6px]"><span class="w-[8px] h-[8px] rounded-full bg-cyan-400 bot-eye shadow-[0_0_8px_#22d3ee]"></span><span class="w-[8px] h-[8px] rounded-full bg-cyan-400 bot-eye shadow-[0_0_8px_#22d3ee]"></span></div>
+                  </div>
+                  <div class="flex-1">
+                    <div id="botName" class="font-syne font-bold text-[14px]">SLACKER BOT</div>
+                    <div id="botMsg" class="text-[12px] leading-[1.4] opacity-80 mt-1 min-h-[48px]">Awaiting your moves, player...</div>
+                    <div class="mt-3 flex gap-2"><span class="mono text-[9px] px-2 py-1 rounded-full bg-white/5 border border-white/10" id="botHp">HP 100/100</span><span class="mono text-[9px] px-2 py-1 rounded-full bg-white/5 border border-white/10" id="botMood">NEUTRAL</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="glass rounded-[20px] p-4">
+              <div class="mono text-[10px] tracking-[0.15em] opacity-50 mb-3">SHARE PROGRESS</div>
+              <div id="miniSharePreview" class="rounded-[14px] bg-[#0F0F1A] border border-white/5 p-3 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full xp-grad grid place-items-center font-bold" id="miniShareAvatar">P</div>
+                <div><div class="text-[12px] font-bold">Level <span id="miniShareLvl">1</span> • <span id="miniShareStreak">0</span>🔥</div><div class="mono text-[10px] opacity-60"><span id="miniSharePts">0</span> pts today</div></div>
+                <button onclick="openShareModal()" class="ml-auto h-[32px] px-3 rounded-full bg-white text-black text-[11px] font-bold">EXPORT</button>
+              </div>
+            </div>
+            <div class="glass rounded-[20px] p-4">
+              <div class="mono text-[10px] tracking-[0.15em] opacity-50 mb-3">REWARDS SHOP PREVIEW</div>
+              <div id="shopPreview" class="space-y-2"></div>
+              <button onclick="switchView('shop')" class="mt-3 w-full h-[36px] rounded-full bg-white/5 border border-white/10 mono text-[11px] font-bold tracking-widest hover:bg-white/10">OPEN SHOP →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEKLY -->
+      <div id="weeklyView" class="view hidden">
+        <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">WEEKLY MATRIX</h1>
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-7 gap-3" id="weeklyGrid"></div>
+        <div class="mt-6 glass rounded-[20px] p-5">
+          <div class="mono text-[11px] tracking-widest opacity-60 mb-4">WEEK SUMMARY</div>
+          <div class="grid grid-cols-3 gap-4" id="weeklySummary"></div>
+        </div>
+      </div>
+
+      <!-- MONTHLY -->
+      <div id="monthlyView" class="view hidden">
+        <div class="flex items-center justify-between">
+          <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">MONTHLY ARCHIVE</h1>
+          <div id="monthLabel" class="mono text-[12px] px-3 py-1.5 rounded-full bg-white/5 border border-white/10"></div>
+        </div>
+        <div class="mt-6 glass rounded-[22px] p-4 lg:p-6">
+          <div class="grid grid-cols-7 gap-1 mono text-[10px] tracking-widest opacity-40 mb-3 text-center"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+          <div id="monthlyGrid" class="grid grid-cols-7 gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div id="analyticsView" class="view hidden">
+        <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">COMBAT ANALYTICS</h1>
+        <div class="mt-6 grid lg:grid-cols-3 gap-4" id="analyticsCards"></div>
+        <div class="mt-4 glass rounded-[20px] p-5">
+          <div class="mono text-[11px] tracking-widest opacity-60 mb-4">POINTS TRAIL (LAST 14 DAYS)</div>
+          <div id="pointsTrail" class="flex items-end gap-[4px] h-[120px]"></div>
+        </div>
+      </div>
+
+      <!-- JOURNAL -->
+      <div id="journalView" class="view hidden">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">NEURAL LOG</h1>
+          <div class="flex gap-2">
+            <input id="journalSearch" placeholder="SEARCH LOGS..." class="h-[40px] w-[200px] rounded-full bg-white/5 border border-white/10 px-4 mono text-[12px] outline-none focus:border-violet-500/50">
+            <input id="journalDate" type="date" class="h-[40px] rounded-full bg-white/5 border border-white/10 px-4 mono text-[12px] outline-none">
+          </div>
+        </div>
+        <div class="mt-6 grid lg:grid-cols-[380px_1fr] gap-4">
+          <div class="glass rounded-[20px] p-4">
+            <div class="flex items-center justify-between mb-3"><span class="mono text-[10px] tracking-widest opacity-60">ENTRY</span><div id="journalMoods" class="flex gap-1"></div></div>
+            <textarea id="journalText" placeholder="How did today go? Reflections, ideas, wins..." class="w-full h-[220px] rounded-[14px] bg-[#0F0F1A] border border-white/10 p-4 text-[13px] leading-[1.6] outline-none resize-none focus:border-violet-500/40"></textarea>
+            <button onclick="saveJournal()" class="mt-3 w-full h-[42px] rounded-full bg-white text-black font-bold text-[12px] tracking-widest">SAVE ENTRY</button>
+          </div>
+          <div id="journalList" class="space-y-2 max-h-[560px] overflow-auto pr-1"></div>
+        </div>
+      </div>
+
+      <!-- SHOP -->
+      <div id="shopView" class="view hidden">
+        <div class="flex items-center justify-between">
+          <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">REWARD DEPOT</h1>
+          <div class="h-[40px] px-4 rounded-full bg-[#FDE047]/10 border border-[#FDE047]/20 flex items-center gap-2"><span>◍</span><span id="shopCoins" class="mono font-bold text-[#FDE047]">0</span></div>
+        </div>
+        <div class="mt-6 grid lg:grid-cols-3 gap-3" id="shopGrid"></div>
+        <div class="mt-6 glass rounded-[20px] p-4">
+          <div class="flex gap-2"><input id="newRewardName" placeholder="Custom reward name" class="flex-1 h-[40px] rounded-full bg-[#0F0F1A] border border-white/10 px-4 text-[13px] outline-none"><input id="newRewardCost" type="number" placeholder="Cost" class="w-[100px] h-[40px] rounded-full bg-[#0F0F1A] border border-white/10 px-4 text-[13px] outline-none"><button onclick="addCustomReward()" class="h-[40px] px-5 rounded-full bg-white text-black font-bold text-[12px]">ADD</button></div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div id="profileView" class="view hidden">
+        <h1 class="font-syne font-black text-[28px] lg:text-[42px] tracking-[-0.03em]">PLAYER PROFILE</h1>
+        <div class="mt-6 grid lg:grid-cols-[360px_1fr] gap-4">
+          <div class="glass-strong rounded-[22px] p-6">
+            <div class="flex flex-col items-center">
+              <div class="relative group">
+                <div id="profileAvatar" class="w-[96px] h-[96px] rounded-[24px] bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center text-[36px] font-black overflow-hidden border border-white/20"></div>
+                <label class="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white text-black grid place-items-center cursor-pointer hover:scale-105 transition">↗<input type="file" accept="image/*" class="hidden" onchange="uploadAvatar(event)"></label>
+              </div>
+              <input id="profileNameInput" class="mt-4 w-full h-[44px] rounded-full bg-white/5 border border-white/10 text-center font-bold text-[16px] outline-none focus:border-violet-500/40" value="Player One">
+              <div class="mt-4 grid grid-cols-3 gap-2 w-full">
+                <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[10px] opacity-50">LEVEL</div><div id="profileLevel" class="font-syne font-black text-[20px]">1</div></div>
+                <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[10px] opacity-50">STREAK</div><div id="profileStreak" class="font-syne font-black text-[20px]">0</div></div>
+                <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[10px] opacity-50">HP</div><div id="profileHp" class="font-syne font-black text-[20px]">100</div></div>
+              </div>
+              <button onclick="openShareModal()" class="mt-5 w-full h-[44px] rounded-full xp-grad font-bold text-[13px] tracking-wide">GENERATE SHARE CARD</button>
+              <button onclick="resetAllData()" class="mt-2 w-full h-[40px] rounded-full bg-white/5 border border-white/10 mono text-[11px] tracking-widest hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300">RESET PROTOCOL</button>
+            </div>
+          </div>
+          <div class="glass rounded-[22px] p-6">
+            <div class="mono text-[11px] tracking-[0.2em] opacity-60 mb-4">SHARE CARD PREVIEW</div>
+            <div id="sharePreviewWrap" class="flex justify-center bg-[#0A0A0F] rounded-[16px] p-6 border border-white/5">
+              <div id="sharePreviewCard" class="w-[340px] rounded-[20px] overflow-hidden border border-white/10 bg-gradient-to-br from-[#1B1B2E] to-[#10101A] p-5 relative">
+                <div class="absolute top-0 right-0 w-[160px] h-[160px] bg-gradient-to-br from-violet-500/20 to-cyan-400/20 blur-[20px] rounded-full"></div>
+                <div class="relative flex items-center gap-3">
+                  <div id="cardAvatar" class="w-14 h-14 rounded-[14px] bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-black text-[20px] overflow-hidden">P</div>
+                  <div><div id="cardName" class="font-syne font-black text-[16px] leading-none">Player One</div><div class="mono text-[10px] opacity-60 mt-1">LVL <span id="cardLevel">1</span> • <span id="cardStreak">0</span>🔥 STREAK</div></div>
+                  <div class="ml-auto mono text-[9px] px-2 py-1 rounded-full bg-[#BEF264]/15 border border-[#BEF264]/20 text-[#BEF264]">VICTORY</div>
+                </div>
+                <div class="mt-4"><div class="flex justify-between mono text-[10px] opacity-60 mb-1"><span>XP PROGRESS</span><span id="cardXp">0 / 100</span></div><div class="progress-track h-[8px]"><div id="cardXpBar" class="progress-fill xp-grad h-full" style="width:20%"></div></div></div>
+                <div class="mt-4 grid grid-cols-3 gap-2">
+                  <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[9px] opacity-50">TODAY</div><div id="cardToday" class="font-bold text-[18px]">0</div><div class="mono text-[8px] opacity-50">PTS</div></div>
+                  <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[9px] opacity-50">DONE</div><div id="cardDone" class="font-bold text-[18px]">0/0</div><div class="mono text-[8px] opacity-50">QUESTS</div></div>
+                  <div class="rounded-[12px] bg-white/5 border border-white/5 p-3 text-center"><div class="mono text-[9px] opacity-50">COINS</div><div id="cardCoins" class="font-bold text-[18px]">0</div><div class="mono text-[8px] opacity-50">◍</div></div>
+                </div>
+                <div class="mt-4 rounded-[12px] bg-white/[0.04] border border-white/5 p-3 text-[11px] leading-[1.4] italic opacity-80" id="cardQuote">"Consistency is the cheat code."</div>
+                <div class="mt-4 flex justify-between mono text-[8px] tracking-[0.2em] opacity-40"><span>QUESTLOG PROTOCOL</span><span id="cardDate">--</span></div>
+              </div>
+            </div>
+            <div class="mt-4 flex gap-2">
+              <button onclick="downloadShareCard()" class="flex-1 h-[44px] rounded-full bg-white text-black font-bold text-[12px] tracking-wide">⬇ SAVE PNG</button>
+              <button onclick="shareCard()" class="flex-1 h-[44px] rounded-full bg-white/5 border border-white/10 font-bold text-[12px] tracking-wide">↗ SHARE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0E0E1A]/95 backdrop-blur-[18px] border-t border-white/10 px-2 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))]">
+  <div class="grid grid-cols-6 gap-1" id="mobileNav"></div>
+</nav>
+
+<!-- TASK MODAL -->
+<div id="taskModal" class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-[12px] p-4 grid place-items-center">
+  <div class="w-full max-w-[480px] glass-strong rounded-[24px] p-6">
+    <div class="flex items-center justify-between mb-5"><h3 class="font-syne font-black text-[18px]">NEW QUEST</h3><button onclick="closeTaskModal()" class="w-8 h-8 rounded-full bg-white/5 grid place-items-center">✕</button></div>
+    <div class="space-y-4">
+      <input id="mTaskName" placeholder="Quest name (e.g., Morning Run)" class="w-full h-[48px] rounded-[14px] bg-[#0F0F1A] border border-white/10 px-4 text-[14px] outline-none focus:border-violet-500/50">
+      <div class="grid grid-cols-2 gap-3">
+        <input id="mTaskPoints" type="number" placeholder="Points (e.g., 20)" class="h-[48px] rounded-[14px] bg-[#0F0F1A] border border-white/10 px-4 text-[14px] outline-none">
+        <select id="mTaskType" class="h-[48px] rounded-[14px] bg-[#0F0F1A] border border-white/10 px-4 text-[14px] outline-none" onchange="toggleMeasurable()">
+          <option value="checkbox">Checkbox (0/100%)</option>
+          <option value="measurable">Measurable (numeric)</option>
+        </select>
+      </div>
+      <div id="measurableFields" class="hidden grid grid-cols-2 gap-3">
+        <input id="mGoal" type="number" step="0.1" placeholder="Goal (e.g., 5)" class="h-[44px] rounded-[12px] bg-[#0F0F1A] border border-white/10 px-4 text-[13px] outline-none">
+        <input id="mUnit" placeholder="Unit (km, pages, min)" class="h-[44px] rounded-[12px] bg-[#0F0F1A] border border-white/10 px-4 text-[13px] outline-none">
+      </div>
+      <div>
+        <div class="mono text-[10px] tracking-widest opacity-60 mb-2">SCHEDULE</div>
+        <div class="flex gap-2">
+          <button id="schedDaily" onclick="setSchedule('daily')" class="flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white text-black border-white">DAILY</button>
+          <button id="schedWeek" onclick="setSchedule('weekdays')" class="flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white/5 border-white/10">WEEKDAYS</button>
+          <button id="schedMonth" onclick="setSchedule('monthdays')" class="flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white/5 border-white/10">MONTH</button>
+        </div>
+        <div id="weekdayPicker" class="hidden mt-3 grid grid-cols-7 gap-1.5"></div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeTaskModal()" class="flex-1 h-[46px] rounded-full bg-white/5 border border-white/10 font-bold text-[12px]">CANCEL</button>
+        <button onclick="saveTask()" class="flex-1 h-[46px] rounded-full bg-white text-black font-bold text-[12px]">SAVE QUEST</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div id="shareModal" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-[14px] p-4 grid place-items-center">
+  <div class="w-full max-w-[520px] glass-strong rounded-[24px] p-6">
+    <div class="flex items-center justify-between mb-4"><h3 class="font-syne font-black text-[18px]">EXPORT CARD</h3><button onclick="closeShareModal()" class="w-8 h-8 rounded-full bg-white/5 grid place-items-center">✕</button></div>
+    <div id="exportCardWrap" class="flex justify-center bg-[#08080E] rounded-[18px] p-4 border border-white/5 overflow-auto">
+      <div id="exportCard" class="w-[440px] shrink-0 rounded-[22px] overflow-hidden border border-white/10 bg-gradient-to-br from-[#1C1C2F] via-[#151525] to-[#0F0F1A] p-6 relative">
+        <div class="absolute -top-[40px] -right-[40px] w-[180px] h-[180px] bg-[#A855F7]/20 blur-[30px] rounded-full"></div>
+        <div class="absolute -bottom-[40px] -left-[40px] w-[160px] h-[160px] bg-[#06B6D4]/15 blur-[28px] rounded-full"></div>
+        <div class="relative">
+          <div class="flex items-center justify-between mono text-[9px] tracking-[0.2em] opacity-40"><span>QUESTLOG // PROTOCOL</span><span id="expDate"></span></div>
+          <div class="mt-5 flex items-center gap-4">
+            <div id="expAvatar" class="w-[64px] h-[64px] rounded-[18px] bg-gradient-to-br from-violet-500 to-cyan-400 grid place-items-center font-black text-[26px] overflow-hidden border border-white/15">P</div>
+            <div><div id="expName" class="font-syne font-black text-[22px] leading-none tracking-[-0.02em]">Player One</div><div class="mt-2 flex items-center gap-2"><span class="px-2.5 py-1 rounded-full bg-white text-black mono text-[10px] font-bold">LVL <span id="expLevel">1</span></span><span class="px-2.5 py-1 rounded-full bg-[#BEF264]/15 border border-[#BEF264]/30 text-[#BEF264] mono text-[10px] font-bold">🔥 <span id="expStreak">0</span> STREAK</span></div></div>
+            <div class="ml-auto text-right"><div class="mono text-[10px] opacity-50">TODAY</div><div id="expToday" class="font-syne font-black text-[28px] leading-none">0</div><div class="mono text-[10px] opacity-50">POINTS</div></div>
+          </div>
+          <div class="mt-6"><div class="flex justify-between mono text-[10px] opacity-60 mb-2"><span>XP PROGRESS</span><span id="expXp">0 / 100</span></div><div class="h-[10px] rounded-full bg-white/5 border border-white/5 p-[2px]"><div id="expXpBar" class="h-full rounded-full xp-grad" style="width:30%"></div></div></div>
+          <div class="mt-5 grid grid-cols-3 gap-3">
+            <div class="rounded-[14px] bg-white/[0.05] border border-white/10 p-3"><div class="mono text-[9px] opacity-50 tracking-widest">COMPLETED</div><div id="expDone" class="font-black text-[18px] mt-1">0/0</div><div class="h-[4px] rounded-full bg-white/10 mt-2"><div id="expDoneBar" class="h-full bg-[#BEF264] rounded-full" style="width:0%"></div></div></div>
+            <div class="rounded-[14px] bg-white/[0.05] border border-white/10 p-3"><div class="mono text-[9px] opacity-50 tracking-widest">COINS</div><div id="expCoins" class="font-black text-[18px] mt-1">0 ◍</div><div class="mono text-[9px] opacity-50 mt-2">TOTAL EARNED</div></div>
+            <div class="rounded-[14px] bg-[#BEF264]/10 border border-[#BEF264]/20 p-3"><div class="mono text-[9px] opacity-70 tracking-widest">STATUS</div><div id="expStatus" class="font-black text-[13px] mt-1 leading-[1.2]">VICTORY! Bot defeated</div></div>
+          </div>
+          <div class="mt-5 rounded-[12px] bg-white/[0.04] border border-white/5 p-3 text-[12px] italic leading-[1.4]" id="expQuote">"Discipline is choosing what you want most."</div>
+          <div class="mt-5 flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-6 h-6 rounded-[6px] xp-grad grid place-items-center font-black text-[12px]">Q</div><span class="mono text-[9px] tracking-[0.2em] opacity-40">QUESTLOG.GG</span></div><span class="mono text-[9px] opacity-30">ID #0042-Q • <span id="expFooterDate"></span></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 flex gap-2"><button onclick="downloadShareCard()" class="flex-1 h-[46px] rounded-full bg-white text-black font-bold text-[12px]">⬇ DOWNLOAD PNG</button><button onclick="shareCard()" class="flex-1 h-[46px] rounded-full bg-white/5 border border-white/10 font-bold text-[12px]">↗ SHARE</button></div>
+  </div>
+</div>
+
+<!-- LEVEL UP -->
+<div id="levelUpModal" class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-[16px] grid place-items-center p-6">
+  <div class="text-center" style="animation:levelpop .6s cubic-bezier(.34,1.56,.64,1)">
+    <div class="w-[120px] h-[120px] mx-auto rounded-[28px] xp-grad grid place-items-center text-[48px] font-black neon">✦</div>
+    <div class="font-syne font-black text-[48px] tracking-[-0.03em] mt-6 leading-none">LEVEL UP!</div>
+    <div class="mono text-[12px] tracking-[0.2em] opacity-60 mt-2">YOU REACHED LEVEL <span id="levelUpNum">2</span></div>
+    <div class="mt-6 glass rounded-[16px] p-4 max-w-[320px] mx-auto text-[13px] leading-[1.5]">New perks unlocked. HP fully restored. Slacker Bot is trembling.</div>
+    <button onclick="closeLevelUp()" class="mt-6 h-[46px] px-8 rounded-full bg-white text-black font-bold text-[12px] tracking-widest">CONTINUE →</button>
+  </div>
+</div>
+
+<!-- BOT ATTACK -->
+<div id="attackModal" class="hidden fixed inset-0 z-[70] bg-[#EF4444]/10 backdrop-blur-[18px] grid place-items-center p-6">
+  <div class="w-full max-w-[420px] glass-strong rounded-[24px] p-6 border-red-500/20" style="animation:shake .4s ease">
+    <div class="flex items-center gap-4">
+      <div class="w-[64px] h-[64px] rounded-[16px] bg-[#EF4444]/15 border border-[#EF4444]/30 grid place-items-center text-[30px]">🤖</div>
+      <div><div class="font-syne font-black text-[18px] text-[#FCA5A5]">SLACKER BOT ATTACK!</div><div id="attackText" class="text-[13px] leading-[1.4] mt-1 opacity-90"></div></div>
+    </div>
+    <div class="mt-5 grid grid-cols-3 gap-2">
+      <div class="rounded-[12px] bg-[#EF4444]/10 border border-[#EF4444]/20 p-3 text-center"><div class="mono text-[10px] opacity-60">HP LOST</div><div class="font-black text-[18px] text-[#FCA5A5]">-20</div></div>
+      <div class="rounded-[12px] bg-white/5 border border-white/10 p-3 text-center"><div class="mono text-[10px] opacity-60">COINS</div><div class="font-black text-[18px]">-10</div></div>
+      <div class="rounded-[12px] bg-white/5 border border-white/10 p-3 text-center"><div class="mono text-[10px] opacity-60">STREAK</div><div class="font-black text-[18px]">RESET</div></div>
+    </div>
+    <button onclick="closeAttack()" class="mt-5 w-full h-[46px] rounded-full bg-white text-black font-bold text-[12px]">I'LL COME BACK STRONGER</button>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboardModal" class="hidden fixed inset-0 z-[80] bg-black/85 backdrop-blur-[20px] grid place-items-center p-4">
+  <div class="w-full max-w-[520px] glass-strong rounded-[26px] overflow-hidden">
+    <div class="h-[4px] w-full bg-white/5"><div id="onboardProgress" class="h-full xp-grad transition-all duration-500" style="width:25%"></div></div>
+    <div class="p-7">
+      <div id="onboardContent"></div>
+      <div class="mt-6 flex justify-between items-center"><button onclick="skipOnboard()" class="mono text-[11px] tracking-widest opacity-50 hover:opacity-80">SKIP</button><div class="flex gap-2"><button onclick="prevOnboard()" id="onPrev" class="h-[40px] px-5 rounded-full bg-white/5 border border-white/10 mono text-[11px] font-bold hidden">BACK</button><button onclick="nextOnboard()" class="h-[40px] px-6 rounded-full bg-white text-black font-bold text-[12px]">NEXT →</button></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastWrap" class="fixed bottom-[96px] lg:bottom-6 left-1/2 -translate-x-1/2 z-[90] pointer-events-none flex flex-col gap-2 items-center"></div>
+
+<!-- HIDDEN EXPORT CANVAS SOURCE (for html2canvas) -->
+<div id="hiddenExport" class="fixed left-[-9999px] top-0"></div>
+
+<script>
+/* ---------- DATA ---------- */
+const DEFAULT_TASKS = [
+  {name:"Sleeping early", points:20, icon:"🌙", color:"#A855F7"},
+  {name:"Reviewing lessons", points:15, icon:"📚", color:"#06B6D4"},
+  {name:"Exercising", points:10, icon:"💪", color:"#BEF264"},
+  {name:"Personal care", points:15, icon:"✨", color:"#EC4899"},
+  {name:"Reading a book", points:10, icon:"📖", color:"#FDE047"},
+  {name:"Trading", points:20, icon:"📈", color:"#22D3EE"},
+  {name:"Writing a video script & filming it", points:15, icon:"🎬", color:"#A78BFA"},
+  {name:"Editing the video (montage)", points:10, icon:"🎞️", color:"#FB7185"},
+  {name:"Phone usage limited to 1.5–2 hours", points:10, icon:"📵", color:"#34D399"},
+  {name:"No phone 30–60 min before sleep", points:20, icon:"😴", color:"#818CF8"},
+  {name:"Healthy eating", points:25, icon:"🥗", color:"#BEF264"},
+];
+const QUOTES = [
+  "Discipline is choosing between what you want now and what you want most.",
+  "You do not rise to the level of your goals. You fall to the level of your systems.",
+  "Small daily improvements are the key to staggering long-term results.",
+  "Consistency is the cheat code. Show up when it's boring.",
+  "The Slacker Bot fears your streak. Keep it alive.",
+  "Every completed quest is XP for your future self.",
+  "Focus is a superpower in a world of distractions.",
+  "Victory belongs to those who finish the day.",
+];
+const MOODS = ["😶","🙂","🤩","😤","😴","🥳","😌","🤯","💪","🌟"];
+const TAUNTS = [
+  "You lost {hp} HP! The Slacker Bot got you today. Come back stronger tomorrow.",
+  "BZZT! Systems failing... You skipped {missed} quests. -20 HP!",
+  "Is that all you got? Slacker Bot is winning this round!",
+  "HP critical! Complete your quests or the bot takes over.",
+  "Slacker Bot: 'Hehe, I'll be back tomorrow. Will you?'"
+];
+const VICTORIES = [
+  "Victory! The Slacker Bot was defeated today. Flawless protocol!",
+  "PERFECT CLEAR! All quests completed. Bot retreats!",
+  "DOMINATION! You crushed it. +Streak, +XP, +Respect.",
+  "SYSTEM SECURED. No bot intrusion today."
+];
+
+let data, currentView='daily', editingTaskId=null, schedType='daily', schedDays=[], onboardStep=0;
+
+function todayStr(d=new Date()){return d.toISOString().slice(0,10)}
+function fmtDate(s){const d=new Date(s);return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return todayStr(d)}
+function getLevelInfo(totalXp){
+  let level=1, xpNeeded=100, acc=0;
+  while(totalXp >= acc+xpNeeded){acc+=xpNeeded;level++;xpNeeded=Math.floor(100*Math.pow(level,1.28));}
+  return {level, current:totalXp-acc, needed:xpNeeded, progress:Math.min(100,((totalXp-acc)/xpNeeded)*100), acc};
+}
+function loadData(){
+  try{
+    const raw=localStorage.getItem('questlog_v2');
+    if(raw){return JSON.parse(raw);}
+  }catch(e){}
+  return null;
+}
+function defaultData(){
+  return {
+    profile:{name:"Player One", avatar:null, totalXp:0, hp:100, maxHp:100, coins:0, streak:0, longest:0, lastDate:null, spent:0, bonuses:0},
+    tasks:DEFAULT_TASKS.map((t,i)=>({id:'t_'+(Date.now()+i), name:t.name, points:t.points, type:'checkbox', goal:5, unit:'km', schedule:{type:'daily', days:[]}, icon:t.icon, color:t.color})),
+    completions:{},
+    notes:{},
+    shop:[
+      {id:'s1', name:"Watch a movie", cost:100, icon:"🎬"},
+      {id:'s2', name:"Buy a snack", cost:50, icon:"🍿"},
+      {id:'s3', name:"Gaming hour", cost:150, icon:"🎮"},
+      {id:'s4', name:"New book", cost:200, icon:"📚"},
+    ],
+    settings:{sound:true, lang:'en'},
+    seenOnboard:false
+  };
+}
+function save(){localStorage.setItem('questlog_v2', JSON.stringify(data));}
+function recalcTotals(){
+  let total=0;
+  Object.values(data.completions).forEach(day=>{Object.values(day).forEach(c=>{total+=c.earned||0})});
+  data.profile.totalXp=total;
+  const avail=total + (data.profile.bonuses||0) - (data.profile.spent||0);
+  data.profile.coins=Math.max(0,avail);
+}
+function getTasksForDate(dateStr){
+  const d=new Date(dateStr);
+  const day=d.getDay(); //0 sun
+  const jsDay=day===0?7:day; //1-7 mon-sun
+  const dateNum=d.getDate();
+  return data.tasks.filter(t=>{
+    const s=t.schedule||{type:'daily'};
+    if(s.type==='daily') return true;
+    if(s.type==='weekdays') return (s.days||[]).includes(jsDay);
+    if(s.type==='monthdays') return (s.days||[]).includes(dateNum);
+    return true;
+  });
+}
+function getDayStats(dateStr){
+  const tasks=getTasksForDate(dateStr);
+  const comp=data.completions[dateStr]||{};
+  let pts=0, done=0;
+  tasks.forEach(t=>{
+    const c=comp[t.id];
+    if(c){pts+=c.earned||0; if((c.percent||0)>=100) done++;}
+  });
+  const rate=tasks.length?Math.round((done/tasks.length)*100):0;
+  return {pts, done, total:tasks.length, rate, tasks, comp};
+}
+
+/* ---------- INIT ---------- */
+function init(){
+  data=loadData()||defaultData();
+  recalcTotals();
+  renderNav();
+  renderAll();
+  updateHUD();
+  checkFirstTime();
+  setInterval(()=>{document.getElementById('todayDateLabel').textContent=todayStr();},60000);
+  document.getElementById('todayDateLabel').textContent=fmtDate(todayStr());
+  document.getElementById('quoteBox').textContent='“'+QUOTES[new Date().getDate()%QUOTES.length]+'”';
+  document.getElementById('journalDate').value=todayStr();
+  document.getElementById('monthLabel').textContent=new Date().toLocaleDateString('en-US',{month:'long', year:'numeric'});
+  renderMoods();
+  renderWeekdayPicker();
+  // lang
+  if(data.settings.lang==='ar'){applyLang('ar');}
+}
+function renderNav(){
+  const items=[
+    {id:'daily', label:'DAILY', icon:'◧', i18n:'daily'},
+    {id:'weekly', label:'WEEKLY', icon:'▦', i18n:'weekly'},
+    {id:'monthly', label:'MONTHLY', icon:'▭', i18n:'monthly'},
+    {id:'analytics', label:'STATS', icon:'◩', i18n:'analytics'},
+    {id:'journal', label:'JOURNAL', icon:'✎', i18n:'journal'},
+    {id:'shop', label:'SHOP', icon:'◍', i18n:'shop'},
+  ];
+  const desk=document.getElementById('desktopNav');
+  const mob=document.getElementById('mobileNav');
+  desk.innerHTML=items.map(it=>`<button onclick="switchView('${it.id}')" data-view="${it.id}" class="nav-btn w-full h-[44px] px-4 rounded-[12px] flex items-center gap-3 text-[12px] font-bold tracking-widest mono transition ${currentView===it.id?'bg-white text-black':'bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06]'}"><span class="w-7 h-7 rounded-[8px] grid place-items-center ${currentView===it.id?'bg-black/10':'bg-white/5'}">${it.icon}</span>${it.label}</button>`).join('')+`<button onclick="switchView('profile')" data-view="profile" class="nav-btn w-full h-[44px] px-4 rounded-[12px] flex items-center gap-3 text-[12px] font-bold tracking-widest mono transition ${currentView==='profile'?'bg-white text-black':'bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06]'}"><span class="w-7 h-7 rounded-[8px] grid place-items-center ${currentView==='profile'?'bg-black/10':'bg-white/5'}">◐</span>PROFILE</button>`;
+  mob.innerHTML=items.map(it=>`<button onclick="switchView('${it.id}')" class="flex flex-col items-center gap-1 py-2 rounded-[12px] ${currentView===it.id?'bg-white text-black':'opacity-60'}"><span class="text-[16px]">${it.icon}</span><span class="mono text-[8px] tracking-widest font-bold">${it.label}</span></button>`).join('')+`<button onclick="switchView('profile')" class="flex flex-col items-center gap-1 py-2 rounded-[12px] ${currentView==='profile'?'bg-white text-black':'opacity-60'}"><span class="text-[16px]">◐</span><span class="mono text-[8px] tracking-widest font-bold">YOU</span></button>`;
+}
+function switchView(v){
+  currentView=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.add('hidden'));
+  document.getElementById(v+'View').classList.remove('hidden');
+  renderNav();
+  if(v==='daily') renderDaily();
+  if(v==='weekly') renderWeekly();
+  if(v==='monthly') renderMonthly();
+  if(v==='analytics') renderAnalytics();
+  if(v==='journal') renderJournal();
+  if(v==='shop') renderShop();
+  if(v==='profile') renderProfile();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------- HUD ---------- */
+function updateHUD(){
+  const info=getLevelInfo(data.profile.totalXp||0);
+  document.getElementById('levelBadge').textContent=info.level;
+  document.getElementById('levelBadgeM').textContent=info.level;
+  document.getElementById('xpText').textContent=`${info.current} / ${info.needed}`;
+  document.getElementById('xpTextM').textContent=`${info.current} / ${info.needed}`;
+  document.getElementById('xpBar').style.width=info.progress+'%';
+  document.getElementById('xpBarM').style.width=info.progress+'%';
+  document.getElementById('hpBar').style.width=(data.profile.hp||100)+'%';
+  document.getElementById('hpText').textContent=Math.round(data.profile.hp||100);
+  document.getElementById('coinText').textContent=data.profile.coins||0;
+  document.getElementById('streakText').textContent=data.profile.streak||0;
+  document.getElementById('sideCoins').textContent=data.profile.coins||0;
+  document.getElementById('sideDaily').textContent=getDayStats(todayStr()).pts;
+  // weekly/monthly coins calc quick
+  const w=calcWeekStats(); document.getElementById('sideWeekly').textContent=w.total;
+  const m=calcMonthStats(); document.getElementById('sideMonthly').textContent=m.total;
+  // avatars
+  const av=data.profile.avatar;
+  const name=data.profile.name||'Player One';
+  const initial=name.charAt(0).toUpperCase();
+  ['sideAvatar','topAvatar','profileAvatar','miniShareAvatar','cardAvatar'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(av){el.innerHTML=`<img src="${av}" class="w-full h-full object-cover">`; el.textContent='';}
+    else{el.textContent=initial; el.innerHTML=initial;}
+  });
+  document.getElementById('sideName').textContent=name;
+  document.getElementById('profileNameInput').value=name;
+  // bot mini
+  const ds=getDayStats(todayStr());
+  const botMini=document.getElementById('miniBotText');
+  const botFace=document.getElementById('miniBotFace');
+  const botDot=document.getElementById('botStatusDot');
+  if(ds.rate===100 && ds.total>0){botMini.textContent=VICTORIES[0]; botFace.textContent='😵'; botDot.className='w-2 h-2 rounded-full bg-[#BEF264] shadow-[0_0_8px_#BEF264]';}
+  else if(ds.rate>=50){botMini.textContent='You are winning. Finish the protocol!'; botFace.textContent='🤖';}
+  else if(ds.total>0 && ds.rate<30){botMini.textContent='Slacker Bot is charging...'; botFace.textContent='👾'; botDot.className='w-2 h-2 rounded-full bg-[#EF4444] shadow-[0_0_8px_#EF4444] animate-pulse';}
+  else{botMini.textContent='Monitoring your quests...';}
+}
+
+/* ---------- DAILY ---------- */
+function renderAll(){renderDaily(); renderShopPreview();}
+function renderDaily(){
+  const date=todayStr();
+  const stats=getDayStats(date);
+  const yesterday=getDayStats(daysAgo(1));
+  document.getElementById('todayPts').textContent=stats.pts;
+  document.getElementById('todayComp').textContent=stats.rate+'%';
+  document.getElementById('todayProg').style.width=stats.rate+'%';
+  const delta=stats.pts - yesterday.pts;
+  const deltaEl=document.getElementById('todayDelta');
+  if(delta>0) deltaEl.innerHTML=`<span class="text-[#BEF264]">▲ ${delta}</span>`;
+  else if(delta<0) deltaEl.innerHTML=`<span class="text-[#FCA5A5]">▼ ${Math.abs(delta)}</span>`;
+  else deltaEl.textContent='—';
+  document.getElementById('todayDots').innerHTML=Array.from({length:Math.max(5,stats.total)}).map((_,i)=>`<div class="w-[18px] h-[6px] rounded-full ${i<stats.done?'bg-[#BEF264]':'bg-white/10'}"></div>`).join('');
+  const w=calcWeekStats(); document.getElementById('weekPts').textContent=w.total; document.getElementById('weekComp').textContent=w.avg+'% avg';
+  const m=calcMonthStats(); document.getElementById('monthPts').textContent=m.total; document.getElementById('monthComp').textContent=m.avg+'% avg';
+
+  // bot
+  const botMsgEl=document.getElementById('botMsg');
+  const botEmojiEl=document.getElementById('botEmoji');
+  const botHpEl=document.getElementById('botHp');
+  const botMoodEl=document.getElementById('botMood');
+  botHpEl.textContent=`HP ${Math.round(data.profile.hp)}/${data.profile.maxHp}`;
+  if(stats.rate===100 && stats.total>0){botMsgEl.textContent=VICTORIES[Math.floor(Math.random()*VICTORIES.length)]; botEmojiEl.textContent='🥳'; botMoodEl.textContent='DEFEATED'; botMoodEl.className='mono text-[9px] px-2 py-1 rounded-full bg-[#BEF264]/15 border border-[#BEF264]/20 text-[#BEF264]';}
+  else if(stats.rate===0){botMsgEl.textContent='The bot is waiting. Complete a quest to attack!'; botEmojiEl.textContent='🤖'; botMoodEl.textContent='IDLE';}
+  else{botMsgEl.textContent=`${stats.done}/${stats.total} quests done. ${stats.rate>=70?'Almost there! Finish him!':'Keep pushing, player.'}`; botEmojiEl.textContent=stats.rate>=70?'😬':'👾'; botMoodEl.textContent=stats.rate>=70?'WEAKENED':'AGGRO';}
+
+  // tasks
+  const list=document.getElementById('taskList');
+  if(stats.tasks.length===0){
+    list.innerHTML=`<div class="glass rounded-[18px] p-10 text-center"><div class="text-[28px]">🛰️</div><div class="mono text-[12px] tracking-widest opacity-60 mt-3">NO QUESTS FOR TODAY</div><button onclick="openTaskModal()" class="mt-4 h-[40px] px-5 rounded-full bg-white text-black font-bold text-[12px]">CREATE FIRST QUEST</button></div>`;
+  }else{
+    list.innerHTML=stats.tasks.map(t=>{
+      const c=stats.comp[t.id]||{percent:0, value:0, earned:0};
+      const pct=c.percent||0;
+      const isDone=pct>=100;
+      return `<div class="task-card glass rounded-[18px] p-4 ${isDone?'done':''}" style="border:1px solid rgba(255,255,255,0.07)">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-[12px] grid place-items-center text-[18px] shrink-0" style="background:${t.color}18;border:1px solid ${t.color}30">${t.icon||'◧'}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-2">
+              <div class="font-semibold text-[14px] leading-[1.25] ${isDone?'line-through opacity-60':''}">${t.name}</div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span class="mono text-[11px] font-bold px-2 py-1 rounded-full bg-white/5 border border-white/10">${t.points} PTS</span>
+                <button onclick="editTask('${t.id}')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 grid place-items-center">✎</button>
+                <button onclick="deleteTask('${t.id}')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-red-500/20 grid place-items-center">✕</button>
+              </div>
+            </div>
+            <div class="mt-3">
+              ${t.type==='checkbox' ? `
+                <div class="flex items-center gap-3">
+                  <button onclick="toggleCheckbox('${t.id}')" class="h-[36px] px-4 rounded-full border font-bold text-[12px] tracking-wide transition ${isDone?'bg-[#BEF264] text-black border-[#BEF264]':'bg-white/5 border-white/10 hover:bg-white/10'}">${isDone?'✓ COMPLETED':'○ MARK DONE'}</button>
+                  <div class="flex-1 progress-track h-[8px]"><div class="progress-fill ${isDone?'bg-[#BEF264]':'xp-grad'} h-full" style="width:${pct}%"></div></div>
+                  <span class="mono text-[11px] w-[36px] text-right">${pct}%</span>
+                </div>
+              ` : `
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <input type="number" step="0.1" value="${c.value||''}" placeholder="0" oninput="updateMeasurable('${t.id}', this.value)" class="w-[90px] h-[36px] rounded-full bg-[#0F0F1A] border border-white/10 px-4 mono text-[13px] outline-none focus:border-violet-500/40">
+                    <span class="mono text-[11px] opacity-60">/ ${t.goal} ${t.unit||''}</span>
+                    <div class="flex-1 progress-track h-[8px] ml-2"><div class="progress-fill xp-grad h-full" style="width:${pct}%"></div></div>
+                    <span class="mono text-[11px] w-[36px] text-right">${Math.round(pct)}%</span>
+                  </div>
+                  <div class="mono text-[10px] opacity-50">${c.earned||0} pts earned • ${pct>=100?'Completed':'In progress'}</div>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // mini share
+  const info=getLevelInfo(data.profile.totalXp);
+  document.getElementById('miniShareLvl').textContent=info.level;
+  document.getElementById('miniShareStreak').textContent=data.profile.streak||0;
+  document.getElementById('miniSharePts').textContent=stats.pts;
+
+  updateHUD();
+  save();
+}
+
+function toggleCheckbox(id){
+  const date=todayStr();
+  if(!data.completions[date]) data.completions[date]={};
+  const t=data.tasks.find(x=>x.id===id);
+  const existing=data.completions[date][id];
+  const willDone=!(existing && existing.percent>=100);
+  data.completions[date][id]={percent:willDone?100:0, value:willDone?1:0, earned:willDone?t.points:0};
+  playSound(willDone?'done':'click');
+  if(willDone && navigator.vibrate) navigator.vibrate(30);
+  recalcTotals();
+  checkLevelUp();
+  renderDaily();
+  toast(willDone?`+${t.points} PTS • ${t.name}`:`Removed • ${t.name}`);
+}
+function updateMeasurable(id, val){
+  const date=todayStr();
+  if(!data.completions[date]) data.completions[date]={};
+  const t=data.tasks.find(x=>x.id===id);
+  const num=parseFloat(val)||0;
+  const pct=Math.min(100, (num/(t.goal||1))*100);
+  const earned=Math.round((pct/100)*t.points);
+  data.completions[date][id]={value:num, percent:pct, earned};
+  recalcTotals();
+  renderDaily();
+}
+function calcWeekStats(){
+  let total=0, rates=[];
+  for(let i=0;i<7;i++){const d=daysAgo(6-i); const s=getDayStats(d); total+=s.pts; rates.push(s.rate);}
+  const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0;
+  return {total, avg, rates};
+}
+function calcMonthStats(){
+  const now=new Date(); const year=now.getFullYear(), month=now.getMonth();
+  let total=0, rates=[], days=0;
+  const dim=new Date(year,month+1,0).getDate();
+  for(let d=1;d<=dim;d++){const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(new Date(ds)>now) break; const s=getDayStats(ds); total+=s.pts; rates.push(s.rate); days++;}
+  const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0;
+  return {total, avg, days};
+}
+
+/* ---------- TASK MODAL ---------- */
+function openTaskModal(){editingTaskId=null; document.getElementById('mTaskName').value=''; document.getElementById('mTaskPoints').value=''; document.getElementById('mTaskType').value='checkbox'; document.getElementById('mGoal').value=''; document.getElementById('mUnit').value=''; schedType='daily'; schedDays=[]; updateSchedUI(); toggleMeasurable(); document.getElementById('taskModal').classList.remove('hidden');}
+function closeTaskModal(){document.getElementById('taskModal').classList.add('hidden');}
+function toggleMeasurable(){document.getElementById('measurableFields').classList.toggle('hidden', document.getElementById('mTaskType').value!=='measurable');}
+function setSchedule(type){schedType=type; if(type!=='weekdays' && type!=='monthdays') schedDays=[]; updateSchedUI();}
+function updateSchedUI(){
+  document.getElementById('schedDaily').className=schedType==='daily'?'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white text-black border-white':'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white/5 border-white/10';
+  document.getElementById('schedWeek').className=schedType==='weekdays'?'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white text-black border-white':'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white/5 border-white/10';
+  document.getElementById('schedMonth').className=schedType==='monthdays'?'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white text-black border-white':'flex-1 h-[38px] rounded-full border text-[12px] font-bold mono tracking-wide bg-white/5 border-white/10';
+  document.getElementById('weekdayPicker').classList.toggle('hidden', schedType!=='weekdays');
+  if(schedType==='weekdays'){renderWeekdayPicker();}
+}
+function renderWeekdayPicker(){
+  const days=[{n:'MON',v:1},{n:'TUE',v:2},{n:'WED',v:3},{n:'THU',v:4},{n:'FRI',v:5},{n:'SAT',v:6},{n:'SUN',v:7}];
+  document.getElementById('weekdayPicker').innerHTML=days.map(d=>`<button onclick="toggleSchedDay(${d.v})" class="h-[36px] rounded-full border mono text-[11px] font-bold ${schedDays.includes(d.v)?'bg-white text-black border-white':'bg-white/5 border-white/10'}">${d.n}</button>`).join('');
+}
+function toggleSchedDay(v){if(schedDays.includes(v)) schedDays=schedDays.filter(x=>x!==v); else schedDays.push(v); renderWeekdayPicker();}
+function saveTask(){
+  const name=document.getElementById('mTaskName').value.trim();
+  const points=parseInt(document.getElementById('mTaskPoints').value)||10;
+  const type=document.getElementById('mTaskType').value;
+  const goal=parseFloat(document.getElementById('mGoal').value)||5;
+  const unit=document.getElementById('mUnit').value.trim()||'km';
+  if(!name){toast('Name required'); return;}
+  const payload={name, points, type, goal, unit, schedule:{type:schedType, days:[...schedDays]}, icon:type==='measurable'?'📏':'◧', color:'#A855F7'};
+  if(editingTaskId){
+    const t=data.tasks.find(x=>x.id===editingTaskId); Object.assign(t,payload);
+  }else{
+    data.tasks.push({id:'t_'+Date.now(), ...payload});
+  }
+  save(); closeTaskModal(); renderDaily(); toast(editingTaskId?'Quest updated':'New quest added');
+}
+function editTask(id){
+  const t=data.tasks.find(x=>x.id===id); if(!t) return;
+  editingTaskId=id;
+  document.getElementById('mTaskName').value=t.name;
+  document.getElementById('mTaskPoints').value=t.points;
+  document.getElementById('mTaskType').value=t.type;
+  document.getElementById('mGoal').value=t.goal||'';
+  document.getElementById('mUnit').value=t.unit||'';
+  schedType=t.schedule?.type||'daily'; schedDays=[...(t.schedule?.days||[])];
+  updateSchedUI(); toggleMeasurable();
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+function deleteTask(id){if(!confirm('Delete this quest?')) return; data.tasks=data.tasks.filter(t=>t.id!==id); save(); renderDaily(); toast('Quest deleted');}
+
+/* ---------- FINISH DAY / ROBOT ---------- */
+function finishDay(){
+  const date=todayStr();
+  const stats=getDayStats(date);
+  if(stats.total===0){toast('No quests today'); return;}
+  if(stats.rate===100){
+    // victory
+    if(data.profile.lastDate!==daysAgo(1) && data.profile.lastDate!==date){
+      // if gap >1, streak reset? we keep logic: if lastDate is yesterday, increment else 1
+    }
+    const isConsecutive=data.profile.lastDate===daysAgo(1);
+    data.profile.streak=isConsecutive?(data.profile.streak||0)+1: (data.profile.lastDate===date?data.profile.streak:1);
+    data.profile.longest=Math.max(data.profile.longest||0, data.profile.streak);
+    data.profile.lastDate=date;
+    data.profile.hp=Math.min(data.profile.maxHp, (data.profile.hp||100)+12);
+    // weekly/monthly bonus check
+    const w=calcWeekStats(); if(w.avg===100 && w.total>0){data.profile.bonuses=(data.profile.bonuses||0)+100; toast('Weekly bonus +100 coins!');}
+    playSound('victory');
+    save(); updateHUD(); renderDaily();
+    toast('VICTORY! Slacker Bot defeated today!');
+  }else{
+    // attack
+    const missed=stats.total-stats.done;
+    const txt=TAUNTS[Math.floor(Math.random()*TAUNTS.length)].replace('{hp}',20).replace('{missed}',missed);
+    document.getElementById('attackText').textContent=txt;
+    document.getElementById('attackModal').classList.remove('hidden');
+    data.profile.hp=Math.max(0,(data.profile.hp||100)-20);
+    data.profile.spent=(data.profile.spent||0)+10;
+    data.profile.streak=0;
+    data.profile.lastDate=date;
+    playSound('attack');
+    if(navigator.vibrate) navigator.vibrate([100,50,100]);
+    recalcTotals(); save(); updateHUD(); renderDaily();
+  }
+}
+function closeAttack(){document.getElementById('attackModal').classList.add('hidden');}
+
+/* ---------- WEEKLY ---------- */
+function renderWeekly(){
+  const grid=document.getElementById('weeklyGrid');
+  const days=[];
+  for(let i=6;i>=0;i--){const d=daysAgo(i); days.push({date:d, stats:getDayStats(d), isToday:d===todayStr()});}
+  grid.innerHTML=days.map(day=>{
+    const s=day.stats;
+    return `<div class="glass rounded-[18px] p-4 ${day.isToday?'border-violet-500/30 neon':''}">
+      <div class="flex justify-between items-center"><span class="mono text-[10px] tracking-widest opacity-60">${new Date(day.date).toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()}</span><span class="mono text-[10px] ${day.isToday?'text-violet-300':'opacity-40'}">${day.date.slice(5)}</span></div>
+      <div class="mt-3 font-syne font-black text-[22px] leading-none">${s.pts}<span class="text-[12px] opacity-50 ml-1">pts</span></div>
+      <div class="mt-2 progress-track h-[6px]"><div class="progress-fill ${s.rate===100?'bg-[#BEF264]':'xp-grad'} h-full" style="width:${s.rate}%"></div></div>
+      <div class="mt-2 mono text-[10px] opacity-60">${s.done}/${s.total} • ${s.rate}%</div>
+      <div class="mt-3 space-y-1">${s.tasks.slice(0,3).map(t=>{const c=s.comp[t.id]; const done=c&&c.percent>=100; return `<div class="text-[11px] flex items-center gap-1.5 ${done?'opacity-60 line-through':''}"><span class="w-1.5 h-1.5 rounded-full ${done?'bg-[#BEF264]':'bg-white/20'}"></span>${t.name.slice(0,22)}</div>`}).join('')}${s.tasks.length>3?`<div class="mono text-[10px] opacity-40">+${s.tasks.length-3} more</div>`:''}</div>
+    </div>`;
+  }).join('');
+  const w=calcWeekStats();
+  document.getElementById('weeklySummary').innerHTML=`
+    <div><div class="mono text-[10px] opacity-50 tracking-widest">TOTAL POINTS</div><div class="font-syne font-black text-[24px]">${w.total}</div></div>
+    <div><div class="mono text-[10px] opacity-50 tracking-widest">AVG COMPLETION</div><div class="font-syne font-black text-[24px]">${w.avg}%</div></div>
+    <div><div class="mono text-[10px] opacity-50 tracking-widest">BEST DAY</div><div class="font-syne font-black text-[16px]">${days.reduce((a,b)=>a.stats.pts>b.stats.pts?a:b).date}</div></div>
+  `;
+}
+
+/* ---------- MONTHLY ---------- */
+function renderMonthly(){
+  const now=new Date(); const y=now.getFullYear(), m=now.getMonth();
+  const first=new Date(y,m,1); const startDay=(first.getDay()===0?7:first.getDay()); //1 mon
+  const dim=new Date(y,m+1,0).getDate();
+  const cells=[];
+  for(let i=1;i<startDay;i++) cells.push(null);
+  for(let d=1;d<=dim;d++) cells.push(new Date(y,m,d));
+  const grid=document.getElementById('monthlyGrid');
+  grid.innerHTML=cells.map(date=>{
+    if(!date) return `<div class="h-[72px] rounded-[12px] bg-white/[0.02]"></div>`;
+    const ds=todayStr(date); const s=getDayStats(ds); const isToday=ds===todayStr(); const isFuture=date>now;
+    let bg='bg-white/[0.03]'; if(s.rate===100) bg='bg-[#BEF264]/15 border border-[#BEF264]/20'; else if(s.rate>=50) bg='bg-violet-500/10 border border-violet-500/20'; else if(s.rate>0) bg='bg-white/[0.06]';
+    return `<div class="h-[72px] rounded-[12px] p-2 ${bg} ${isToday?'ring-1 ring-violet-400':''} ${isFuture?'opacity-30':''}">
+      <div class="flex justify-between mono text-[10px]"><span class="${isToday?'font-bold text-violet-300':''}">${date.getDate()}</span><span class="opacity-60">${s.pts>0?s.pts:''}</span></div>
+      <div class="mt-2 h-[4px] rounded-full bg-white/10 overflow-hidden"><div class="h-full ${s.rate===100?'bg-[#BEF264]':'bg-violet-400'}" style="width:${s.rate}%"></div></div>
+      <div class="mt-1 mono text-[8px] opacity-50">${s.done}/${s.total}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- ANALYTICS ---------- */
+function renderAnalytics(){
+  const today=getDayStats(todayStr());
+  const yest=getDayStats(daysAgo(1));
+  const weekNow=calcWeekStats();
+  const weekPrev=(()=>{
+    let total=0, rates=[]; for(let i=13;i>=7;i--){const s=getDayStats(daysAgo(i)); total+=s.pts; rates.push(s.rate);} const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0; return {total, avg};
+  })();
+  const monthNow=calcMonthStats();
+  const monthPrev=(()=>{
+    const now=new Date(); const y=now.getFullYear(), m=now.getMonth()-1; if(m<0) return {total:0, avg:0};
+    let total=0, rates=[]; const dim=new Date(y,m+1,0).getDate(); for(let d=1;d<=dim;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const s=getDayStats(ds); total+=s.pts; rates.push(s.rate);} const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0; return {total, avg};
+  })();
+  function deltaCard(title, cur, prev, cur2, prev2){
+    const diff=cur-prev; const pct=prev?Math.round((diff/prev)*100):(cur?100:0); const up=diff>=0;
+    return `<div class="glass rounded-[18px] p-5"><div class="mono text-[10px] tracking-[0.18em] opacity-50">${title}</div><div class="mt-3 flex items-baseline gap-3"><span class="font-syne font-black text-[26px]">${cur}</span><span class="mono text-[11px] px-2 py-1 rounded-full ${up?'bg-[#BEF264]/15 text-[#BEF264] border border-[#BEF264]/20':'bg-[#FCA5A5]/15 text-[#FCA5A5] border border-[#FCA5A5]/20'}">${up?'▲':'▼'} ${Math.abs(pct)}%</span></div><div class="mono text-[11px] opacity-50 mt-1">vs ${prev} previous • ${cur2}% vs ${prev2}% completion</div></div>`;
+  }
+  document.getElementById('analyticsCards').innerHTML=
+    deltaCard('TODAY vs YESTERDAY', today.pts, yest.pts, today.rate, yest.rate)+
+    deltaCard('THIS WEEK vs LAST WEEK', weekNow.total, weekPrev.total, weekNow.avg, weekPrev.avg)+
+    deltaCard('THIS MONTH vs LAST MONTH', monthNow.total, monthPrev.total, monthNow.avg, monthPrev.avg);
+  // trail
+  const trail=document.getElementById('pointsTrail');
+  const pts14=[]; for(let i=13;i>=0;i--) pts14.push(getDayStats(daysAgo(i)).pts);
+  const max=Math.max(1,...pts14);
+  trail.innerHTML=pts14.map((p,i)=>`<div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-full bg-white/5 relative overflow-hidden" style="height:${Math.max(8,(p/max)*100)}%"><div class="absolute bottom-0 w-full xp-grad rounded-full" style="height:100%"></div></div><span class="mono text-[8px] opacity-40">${i===13?'T':i===12?'Y':''}</span></div>`).join('');
+}
+
+/* ---------- JOURNAL ---------- */
+function renderMoods(){
+  document.getElementById('journalMoods').innerHTML=MOODS.map(m=>`<button onclick="pickMood('${m}')" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 grid place-items-center text-[14px] mood-btn" data-mood="${m}">${m}</button>`).join('');
+}
+let pickedMood='🙂';
+function pickMood(m){pickedMood=m; document.querySelectorAll('.mood-btn').forEach(b=>b.classList.toggle('!bg-white', b.dataset.mood===m)); document.querySelectorAll('.mood-btn').forEach(b=>b.classList.toggle('!text-black', b.dataset.mood===m));}
+function saveJournal(){
+  const date=document.getElementById('journalDate').value||todayStr();
+  const text=document.getElementById('journalText').value.trim();
+  if(!text){toast('Write something'); return;}
+  data.notes[date]={text, mood:pickedMood, ts:Date.now()};
+  save(); renderJournal(); toast('Log saved'); document.getElementById('journalText').value='';
+}
+function renderJournal(){
+  const search=(document.getElementById('journalSearch').value||'').toLowerCase();
+  const list=document.getElementById('journalList');
+  const entries=Object.entries(data.notes).sort((a,b)=>b[0].localeCompare(a[0])).filter(([d,n])=>!search || n.text.toLowerCase().includes(search) || d.includes(search));
+  if(entries.length===0) list.innerHTML=`<div class="glass rounded-[18px] p-8 text-center mono text-[12px] opacity-50">NO LOGS FOUND</div>`;
+  else list.innerHTML=entries.map(([d,n])=>`<div class="glass rounded-[16px] p-4"><div class="flex justify-between items-center"><span class="mono text-[11px] tracking-widest">${fmtDate(d)}</span><span class="text-[16px]">${n.mood}</span></div><div class="mt-2 text-[13px] leading-[1.5] whitespace-pre-wrap">${n.text}</div><div class="mt-3 flex gap-2"><button onclick="loadJournal('${d}')" class="h-[28px] px-3 rounded-full bg-white/5 border border-white/10 mono text-[10px]">EDIT</button><button onclick="deleteJournal('${d}')" class="h-[28px] px-3 rounded-full bg-white/5 border border-white/10 mono text-[10px]">DELETE</button></div></div>`).join('');
+}
+function loadJournal(date){const n=data.notes[date]; if(!n) return; document.getElementById('journalDate').value=date; document.getElementById('journalText').value=n.text; pickedMood=n.mood; document.querySelectorAll('.mood-btn').forEach(b=>{b.classList.toggle('!bg-white', b.dataset.mood===pickedMood); b.classList.toggle('!text-black', b.dataset.mood===pickedMood);});}
+function deleteJournal(date){if(!confirm('Delete entry?')) return; delete data.notes[date]; save(); renderJournal();}
+document.getElementById('journalSearch')?.addEventListener('input', renderJournal);
+
+/* ---------- SHOP ---------- */
+function renderShop(){
+  document.getElementById('shopCoins').textContent=data.profile.coins||0;
+  document.getElementById('shopGrid').innerHTML=data.shop.map(s=>`<div class="glass rounded-[18px] p-4 flex items-center gap-4"><div class="w-12 h-12 rounded-[12px] bg-white/5 border border-white/10 grid place-items-center text-[22px]">${s.icon}</div><div class="flex-1"><div class="font-bold text-[14px]">${s.name}</div><div class="mono text-[11px] opacity-60 mt-1">${s.cost} ◍ coins</div></div><button onclick="buyReward('${s.id}')" class="h-[36px] px-4 rounded-full bg-white text-black font-bold text-[11px]">BUY</button></div>`).join('');
+}
+function renderShopPreview(){
+  document.getElementById('shopPreview').innerHTML=data.shop.slice(0,3).map(s=>`<div class="flex items-center justify-between p-2 rounded-[10px] bg-white/[0.03] border border-white/[0.04]"><span class="text-[12px]">${s.icon} ${s.name}</span><span class="mono text-[10px] px-2 py-1 rounded-full bg-[#FDE047]/10 text-[#FDE047]">${s.cost}</span></div>`).join('');
+}
+function buyReward(id){
+  const r=data.shop.find(x=>x.id===id); if(!r) return;
+  if((data.profile.coins||0)<r.cost){toast('Not enough coins'); playSound('attack'); return;}
+  data.profile.spent=(data.profile.spent||0)+r.cost; recalcTotals(); save(); updateHUD(); renderShop(); toast(`Purchased: ${r.name} • -${r.cost} coins`); playSound('done');
+}
+function addCustomReward(){
+  const name=document.getElementById('newRewardName').value.trim(); const cost=parseInt(document.getElementById('newRewardCost').value);
+  if(!name||!cost){toast('Name & cost required'); return;}
+  data.shop.push({id:'s_'+Date.now(), name, cost, icon:'🎁'}); document.getElementById('newRewardName').value=''; document.getElementById('newRewardCost').value=''; save(); renderShop(); renderShopPreview(); toast('Reward added');
+}
+
+/* ---------- PROFILE & SHARE ---------- */
+function renderProfile(){
+  const info=getLevelInfo(data.profile.totalXp||0);
+  document.getElementById('profileLevel').textContent=info.level;
+  document.getElementById('profileStreak').textContent=data.profile.streak||0;
+  document.getElementById('profileHp').textContent=Math.round(data.profile.hp||100);
+  // card preview
+  const ds=getDayStats(todayStr());
+  document.getElementById('cardName').textContent=data.profile.name||'Player One';
+  document.getElementById('cardLevel').textContent=info.level;
+  document.getElementById('cardStreak').textContent=data.profile.streak||0;
+  document.getElementById('cardToday').textContent=ds.pts;
+  document.getElementById('cardDone').textContent=`${ds.done}/${ds.total}`;
+  document.getElementById('cardCoins').textContent=data.profile.coins||0;
+  document.getElementById('cardXp').textContent=`${info.current} / ${info.needed}`;
+  document.getElementById('cardXpBar').style.width=info.progress+'%';
+  document.getElementById('cardQuote').textContent='"'+QUOTES[new Date().getDate()%QUOTES.length]+'"';
+  document.getElementById('cardDate').textContent=todayStr();
+  const av=data.profile.avatar;
+  if(av){document.getElementById('cardAvatar').innerHTML=`<img src="${av}" class="w-full h-full object-cover">`;}
+}
+function uploadAvatar(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader(); reader.onload=()=>{data.profile.avatar=reader.result; save(); updateHUD(); renderProfile(); toast('Avatar updated');}; reader.readAsDataURL(file);
+}
+document.getElementById('profileNameInput').addEventListener('change', (e)=>{data.profile.name=e.target.value||'Player One'; save(); updateHUD(); renderProfile();});
+function openShareModal(){
+  const info=getLevelInfo(data.profile.totalXp||0);
+  const ds=getDayStats(todayStr());
+  document.getElementById('expName').textContent=data.profile.name||'Player One';
+  document.getElementById('expLevel').textContent=info.level;
+  document.getElementById('expStreak').textContent=data.profile.streak||0;
+  document.getElementById('expToday').textContent=ds.pts;
+  document.getElementById('expDone').textContent=`${ds.done}/${ds.total}`;
+  document.getElementById('expCoins').textContent=(data.profile.coins||0)+' ◍';
+  document.getElementById('expXp').textContent=`${info.current} / ${info.needed}`;
+  document.getElementById('expXpBar').style.width=info.progress+'%';
+  document.getElementById('expDoneBar').style.width=ds.rate+'%';
+  document.getElementById('expStatus').textContent=ds.rate===100?'VICTORY! Bot defeated':'IN PROGRESS';
+  document.getElementById('expQuote').textContent='"'+QUOTES[new Date().getDate()%QUOTES.length]+'"';
+  document.getElementById('expDate').textContent=todayStr();
+  document.getElementById('expFooterDate').textContent=todayStr();
+  const av=data.profile.avatar;
+  if(av){document.getElementById('expAvatar').innerHTML=`<img src="${av}" class="w-full h-full object-cover">`;}
+  else{document.getElementById('expAvatar').textContent=(data.profile.name||'P').charAt(0).toUpperCase();}
+  document.getElementById('shareModal').classList.remove('hidden');
+}
+function closeShareModal(){document.getElementById('shareModal').classList.add('hidden');}
+async function downloadShareCard(){
+  const el=document.getElementById('exportCard');
+  try{
+    const canvas=await html2canvas(el,{backgroundColor:null, scale:2, useCORS:true});
+    const link=document.createElement('a'); link.download=`questlog-${todayStr()}.png`; link.href=canvas.toDataURL('image/png'); link.click();
+    toast('Card saved as PNG');
+  }catch(err){
+    // fallback canvas draw
+    toast('Exporting...');
+    const canvas=document.createElement('canvas'); canvas.width=880; canvas.height=600; const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#151525'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#fff'; ctx.font='bold 32px Syne'; ctx.fillText('QUESTLOG • LEVEL '+document.getElementById('expLevel').textContent,40,60);
+    ctx.font='20px Space Grotesk'; ctx.fillText(document.getElementById('expName').textContent+' • '+document.getElementById('expToday').textContent+' pts today',40,110);
+    const link=document.createElement('a'); link.download=`questlog-${todayStr()}.png`; link.href=canvas.toDataURL(); link.click();
+  }
+}
+async function shareCard(){
+  if(navigator.share){
+    try{await navigator.share({title:'My QuestLog Progress', text:`Level ${getLevelInfo(data.profile.totalXp).level} • ${getDayStats(todayStr()).pts} pts today • ${data.profile.streak}🔥 streak`, url:location.href}); toast('Shared!');}catch(e){}
+  }else{
+    navigator.clipboard.writeText(location.href); toast('Link copied');
+  }
+}
+
+/* ---------- LEVEL UP ---------- */
+let lastLevel=1;
+function checkLevelUp(){
+  const info=getLevelInfo(data.profile.totalXp||0);
+  if(info.level>lastLevel){
+    document.getElementById('levelUpNum').textContent=info.level;
+    document.getElementById('levelUpModal').classList.remove('hidden');
+    data.profile.hp=data.profile.maxHp;
+    lastLevel=info.level;
+    playSound('level');
+    if(navigator.vibrate) navigator.vibrate([50,30,50,30,100]);
+  }else lastLevel=info.level;
+}
+function closeLevelUp(){document.getElementById('levelUpModal').classList.add('hidden');}
+
+/* ---------- SOUND & LANG ---------- */
+let audioCtx;
+function playSound(type){
+  if(!data.settings.sound) return;
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    if(type==='done'){o.frequency.value=880; g.gain.setValueAtTime(.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25); o.start(); o.stop(audioCtx.currentTime+.25);}
+    else if(type==='level'){o.frequency.value=440; o.frequency.linearRampToValueAtTime(880,audioCtx.currentTime+.4); g.gain.setValueAtTime(.25,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.6); o.start(); o.stop(audioCtx.currentTime+.6);}
+    else if(type==='attack'){o.frequency.value=220; o.frequency.linearRampToValueAtTime(80,audioCtx.currentTime+.3); g.gain.setValueAtTime(.3,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.35); o.start(); o.stop(audioCtx.currentTime+.35);}
+    else{o.frequency.value=600; g.gain.setValueAtTime(.12,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.12); o.start(); o.stop(audioCtx.currentTime+.12);}
+  }catch(e){}
+}
+function toggleSound(){data.settings.sound=!data.settings.sound; save(); document.getElementById('soundBtn').textContent=data.settings.sound?'🔊':'🔇'; toast(data.settings.sound?'Sound on':'Sound off');}
+function toggleLang(){
+  const newLang=data.settings.lang==='en'?'ar':'en'; applyLang(newLang);
+}
+function applyLang(lang){
+  data.settings.lang=lang; save();
+  document.documentElement.lang=lang; document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+  document.getElementById('langBtn').textContent=lang.toUpperCase();
+  if(lang==='ar'){
+    document.querySelectorAll('[data-i18n]').forEach(el=>{if(el.dataset.i18n==='dailyTitle') el.textContent='البروتوكول اليومي';});
+    toast('تم التحويل للعربية • RTL');
+  }else{
+    document.querySelectorAll('[data-i18n]').forEach(el=>{if(el.dataset.i18n==='dailyTitle') el.textContent='DAILY PROTOCOL';});
+    toast('Switched to English • LTR');
+  }
+}
+
+/* ---------- ONBOARDING ---------- */
+function checkFirstTime(){if(!data.seenOnboard){openOnboard();}}
+function openOnboard(){onboardStep=0; document.getElementById('onboardModal').classList.remove('hidden'); renderOnboard();}
+function closeOnboard(){document.getElementById('onboardModal').classList.add('hidden'); data.seenOnboard=true; save();}
+function skipOnboard(){closeOnboard();}
+function nextOnboard(){if(onboardStep<3){onboardStep++; renderOnboard();}else closeOnboard();}
+function prevOnboard(){if(onboardStep>0){onboardStep--; renderOnboard();}}
+function renderOnboard(){
+  const steps=[
+    {title:"WELCOME TO QUESTLOG", desc:"Your life, gamified. Complete quests, earn XP, defeat the Slacker Bot. Every task is a battle, every day is a level.", icon:"🎮"},
+    {title:"HOW IT WORKS", desc:"Add quests (checkbox or measurable like 5km run). Earn points = XP = Coins. Miss quests and Slacker Bot attacks -20 HP. Keep your streak alive!", icon:"⚔️"},
+    {title:"LEVELS & COINS", desc:"XP curve grows: Lv1 needs 100 XP, Lv2 needs 128, etc. Coins = XP + bonuses. Spend them in Reward Depot for real-life treats.", icon:"◍"},
+    {title:"SHARE YOUR VICTORY", desc:"Generate a shareable game card with your level, streak and today's points. Export as PNG and flex your discipline.", icon:"📸"},
+  ];
+  const s=steps[onboardStep];
+  document.getElementById('onboardProgress').style.width=((onboardStep+1)/4*100)+'%';
+  document.getElementById('onPrev').classList.toggle('hidden', onboardStep===0);
+  document.getElementById('onboardContent').innerHTML=`<div class="w-[64px] h-[64px] rounded-[16px] xp-grad grid place-items-center text-[28px] mb-4">${s.icon}</div><h2 class="font-syne font-black text-[24px] tracking-[-0.02em] leading-[1.1]">${s.title}</h2><p class="mt-3 text-[13px] leading-[1.6] opacity-70">${s.desc}</p><div class="mt-5 flex gap-1.5">${steps.map((_,i)=>`<div class="h-[4px] rounded-full transition-all ${i===onboardStep?'w-[24px] bg-white':'w-[8px] bg-white/20'}"></div>`).join('')}</div>`;
+}
+
+/* ---------- UTILS ---------- */
+function toast(msg){
+  const wrap=document.getElementById('toastWrap');
+  const el=document.createElement('div');
+  el.className='pointer-events-auto glass-strong rounded-full px-4 py-2 mono text-[11px] font-bold tracking-wide border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,.5)]';
+  el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0'; el.style.transform='translateY(6px)'; el.style.transition='all .3s ease';},2200);
+  setTimeout(()=>el.remove(),2600);
+}
+function resetAllData(){if(!confirm('Reset all progress? This cannot be undone.')) return; localStorage.removeItem('questlog_v2'); location.reload();}
+
+init();
+</script>
+</body>
+</html>
